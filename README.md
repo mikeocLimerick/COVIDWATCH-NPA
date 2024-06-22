@@ -3,4 +3,4 @@
 # It must be noted that some country's open repositories of COVID-19 data are no longer being updated (as of 2024).
 # However, all 9 countries involved in this project have complete data from Feb 2020 to May 2023. 
 
-# Any data that is no longer easy to find online is collated here in the various data files in the data subdirectory
+# As some data is no longer published/easy to find online, all COVID regional and national data is collated here in the various data files in this repository.
