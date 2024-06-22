@@ -1,4 +1,4 @@
-Yr	ccode	country	npaornot	sqkm	popn	popndensity	ruralornot	county	Mar	Apr	May	Jun	Jul	Aug	Sep	Oct	Nov	Dec	Jan	Feb	yr1	metric
+Yr	ccode	country	npaornot	sqkm	popn	popndensity	ruralornot	county	Mar	Apr	May	Jun	Jul	Aug	Sep	Oct	Nov	Dec	Jan	Feb	yr1 casesper100k
 year1	IE-Leitrim	IE	NPA	1588	32044	20.17884131	y	Leitrim	13	50	18	2	3	1	32	115	32	58	320	96	740	2309.324679
 year1	IE-Mayo	IE	NPA	5588	130507	23.35486757	y	Mayo	54	435	79	4	10	5	61	529	276	604	3256	652	5965	4570.636058
 year1	IE-Roscommon	IE	non	2547	64544	25.34118571	y	Roscommon	11	152	175	10	1	18	97	309	181	185	842	154	2135	3307.821021
