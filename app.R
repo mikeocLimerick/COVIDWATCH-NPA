@@ -1,20 +1,21 @@
+
 library(shiny)
+library(golem)
 library(ggplot2)
 library(ggthemes)
 library(ggpubr)
-library(maps)
 library(tidyverse)
 library(data.table)
 library(tidyr)
 library(mwshiny)
-library(ggpubr)
 library(curl)
 library(readxl)
 library(rsconnect)
-library(DT)
-library(lpSolve)
-library(MatrixModels)
-library(Matrix)
+library(sp)
+library(ggplot2)
+library(ggthemes)
+library(ggpubr)
+library(sp)
 
 tmp <- tempfile()
 file_URL <- "https://data.humdata.org/hxlproxy/api/data-preview.csv?url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_confirmed_global.csv&filename=time_series_covid19_confirmed_global.csv"
@@ -23,7 +24,7 @@ allcovcases <- read.csv(tmp)
 file_URL <- "https://data.humdata.org/hxlproxy/api/data-preview.csv?url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_deaths_global.csv&filename=time_series_covid19_deaths_global.csv"
 curl_download(file_URL, tmp)
 allcovdeaths <- read.csv(tmp)
-
+#view(allcovdeaths)
 covcases<-allcovcases %>% filter(Province.State =="Faroe Islands" 
                                  | Province.State=="Greenland" | Country.Region == "Sweden" 
                                  | Country.Region == "Finland" | Country.Region == "Norway"
@@ -550,8 +551,8 @@ curl_download(file_URL, tmp)
 mostcovtests<- read.csv(tmp)
 
 covtests<-mostcovtests %>% filter(country_code =="FI" 
-                                 | country_code =="IS"  | country_code =="IE" 
-                                 | country_code =="NO" | country_code =="SE")
+                                  | country_code =="IS"  | country_code =="IE" 
+                                  | country_code =="NO" | country_code =="SE")
 
 # new code June 2024
 file_URL <- "https://raw.githubusercontent.com/mikeocLimerick/COVIDWATCH-NPA/aceb97f1337372e7b3e43cfee8350e3f9fa11bd2/UKtesting"
@@ -668,15 +669,14 @@ ui <- uiOutput("uiStub")                                # single-output stub ui
 server <- function(input, output, session) {
   
   ### 15/10/20 Mikes Reactive Dataset
-
+  
   cat("Session started.\n")                               # this prints when a session starts
   onSessionEnded(function() {cat("Session ended.\n\n")})  # this prints when a session ends
   
   # build menu; same on all pages
   output$uiStub <- renderUI(tagList(             # a single-output stub ui basically lets you
     fluidPage( 
-     # tags$head(includeHTML("google-analytics.html")),
-#tags$head(includeHTML("google-analytics.html")),
+ #     tags$head(includeHTML("google-analytics.html")),
       img(src='npalogo.png', width="325px", height="100px", align = "left"), 
       img(src='covidwatch.png', width="375px", height="100px", align = "left"), #width="650px", height="200px",
       #     move the ui into the server function
@@ -685,6 +685,7 @@ server <- function(input, output, session) {
                HTML("<h3><a href='?home'>Home</a> || ",
                     "<a href='?countries'>Countries </a> ||",
                     "<a href='?covidtrends'> Cases+Deaths </a> ||",
+                    "<a href='?excess'> Excess Mortality </a> ||",
                     "<a href='?CFP'> Fatality % </a> ||",
                     "<a href='?testing'> Testing </a> ||",
                     "<a href='?percpos'> % Positivity </a> ||",
@@ -699,8 +700,8 @@ server <- function(input, output, session) {
   
   # load server code for page specified in URL
   validFiles = c("home.R",                             # valid files must be hardcoded here
-                 "countries.R","covidtrends.R","CFP.R","testing.R","percpos.R","regional.R")  #   for security (use all lower-case
-                                                       #    names to prevent Unix case problems)
+                 "countries.R","covidtrends.R","excess.R","CFP.R","testing.R","percpos.R","regional.R")    #    for security (use all lower-case
+  #    names to prevent Unix case problems)
   fname = isolate(session$clientData$url_search)       # isolate() deals with reactive context
   if(nchar(fname)==0) { fname = "?home" }              # blank means home page
   fname = paste0(substr(fname, 2, nchar(fname)), ".R") # remove leading "?", add ".R"
@@ -711,8 +712,8 @@ server <- function(input, output, session) {
     output$pageStub <- renderUI(tagList(              # 404 if no file with that name
       fluidRow(
         column(5,
-                    HTML("<p style='margin-left: 40px;margin-right: 30px'><BR>Welcome to our site. COVIDWATCH EU-NPA is an international project ",
-                     "summarising lessons learnt from the COVID-19 pandemic",
+               HTML("<p style='margin-left: 40px;margin-right: 30px'><BR>Welcome to our site. COVIDWATCH EU-NPA is an international project ",
+                    "summarising lessons learnt from the COVID-19 pandemic",
                     "<BR><BR> Use the menu above to navigate the site</p>")
         )
       )
