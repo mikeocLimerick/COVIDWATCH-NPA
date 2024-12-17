@@ -1,0 +1,405 @@
+' anonymise
+
+Private Sub anon1_Click()
+
+   On Error GoTo ErrorHandler
+   Dim strSQL As String
+   Dim strTable As String
+   Dim decisiontime As Integer
+   Dim runninghalfcons, runninghalfwr As Boolean
+'### 1 check addresses
+runninghalfcons = False
+runninghalfwr = False
+
+   addcons = pathone.Value
+   addwr = pathtwo.Value
+   addconstwo = pathonesecond.Value
+   addwrtwo = pathtwosecond.Value
+   
+   currtry = addcons
+   If currtry = "" Then
+   MsgBox "Please specify full file address for CSV file that contains the Consultations data"
+   Exit Sub
+   ElseIf InStr(currtry, "\") = False Then
+   MsgBox "Please specify full file address for CSV file that contains the Consultations data"
+   Exit Sub
+   ElseIf InStr(currtry, ".csv") = False And InStr(currtry, ".CSV") = False Then
+   MsgBox "Please specify full file address for CSV file that contains the Consultations data"
+   Exit Sub
+   End If
+   
+   currtry = addconstwo
+   If currtry = "" Or IsNull(currtry) = True Or currtry = "C:\" Then
+   decisiontime = MsgBox("You have not entered the full file address for CSV file that contains the 2nd half of the Consultations data (1 Jun 20 to 31 Dec 21). Will we proceed with anonymising the 1st file of Consultations data?", vbQuestion + vbYesNo + vbDefaultButton2, "User Input Required")
+        If decisiontime = vbYes Then
+        runninghalfcons = True
+        Else
+        MsgBox "OK. Please browse to the second file containing Consultations Created Between Dates data (which should cover from 1st Jun 20 to 31st Dec 21) & then click Anonymise button again"
+        Exit Sub
+        End If
+   ElseIf InStr(currtry, "\") = False Then
+        MsgBox "Please specify full file address for CSV file that contains the second CSV of Consultations data (which should cover from 1st Jun 20 to 31st Dec 21)"
+        Exit Sub
+   ElseIf InStr(currtry, ".csv") = False And InStr(currtry, ".CSV") = False Then
+        MsgBox "Please specify full file address for CSV file that contains the second CSV of Consultations data (which should cover from 1st Jun 20 to 31st Dec 21)"
+        Exit Sub
+   End If
+   
+   currtry = addwr
+   If currtry = "" Then
+   MsgBox "Please specify full file address for CSV file that contains the Consultations data"
+   Exit Sub
+   ElseIf InStr(currtry, "\") = False Then
+   MsgBox "Please specify full file address for CSV file that contains the Consultations data"
+   Exit Sub
+   ElseIf InStr(currtry, ".csv") = False And InStr(currtry, ".CSV") = False Then
+   MsgBox "Please specify full file address for CSV file that contains the Consultations data"
+   Exit Sub
+   End If
+   
+   currtry = addwrtwo
+   If currtry = "" Or IsNull(currtry) = True Or currtry = "C:\" Then
+   decisiontime = MsgBox("You have not entered the full file address for CSV file that contains the 2nd half of the Patient Attendance data (1 Jun 20 to 31 Dec 21). Will we proceed with anonymising the 1st file of Patient Attendance data?", vbQuestion + vbYesNo + vbDefaultButton2, "User Input Required")
+        If decisiontime = vbYes Then
+        runninghalfwr = True
+        Else
+        MsgBox "OK. Please browse to the second file containing Patient Attendance Between Dates data (which should cover from 1st Jun 20 to 31st Dec 21) & then click Anonymise button again"
+        Exit Sub
+        End If
+   ElseIf InStr(currtry, "\") = False Then
+        MsgBox "Please specify full file address for CSV file that contains the second CSV of Patient Attendance data (which should cover from 1st Jun 20 to 31st Dec 21)"
+        Exit Sub
+   ElseIf InStr(currtry, ".csv") = False And InStr(currtry, ".CSV") = False Then
+        MsgBox "Please specify full file address for CSV file that contains the second CSV of Patient Attendance data (which should cover from 1st Jun 20 to 31st Dec 21)"
+        Exit Sub
+   End If
+' ### / addresses
+
+Randomize
+anoncode = Int((500 - 100 + 1) * Rnd + 100)
+
+'### 2 deal with cons .csv
+   currtry = addcons
+   strTable = "tblcons"
+   'if exists will drop table
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE tblcons;"
+On Error GoTo ErrorHandler
+   DoCmd.TransferText TransferType:=acImportDelim, TableName:=strTable, FileName:=addcons, HasFieldNames:=True
+   
+   If runninghalfcons = True Then
+        'do nothing
+   Else
+        'stitch together the files
+        currtry = addconstwo
+        strTable = "tblcons2"
+        'if exists will drop table
+        On Error Resume Next
+        CurrentDb.Execute "DROP TABLE tblcons2;"
+        On Error GoTo ErrorHandler
+        DoCmd.TransferText TransferType:=acImportDelim, TableName:=strTable, FileName:=addconstwo, HasFieldNames:=True
+        sqltext = "INSERT INTO tblcons SELECT * FROM tblcons2;"
+        CurrentDb.Execute sqltext
+   End If
+    
+sqltext = "ALTER TABLE tblcons ADD COLUMN ptcode TEXT(25);"
+CurrentDb.Execute sqltext
+sqltext = "ALTER TABLE tblcons ADD COLUMN ptage DOUBLE;"
+CurrentDb.Execute sqltext
+
+sqltext = "UPDATE tblcons SET ptcode = 'p' & MID(" & anoncode & "*((ASC(MID(Text31,1,1))) + (ASC(MID(Text30,len(Text30),1)))+99) & (((val(LEFT(Text32,2))+7) MOD 7)+1) & (((val(RIGHT(Text32,2))+7) MOD 7)+1) & ((ASC(MID(Text30,len(Text30)-1,1))) + (ASC(MID(Text31,2,1)))+99),2,8), ptage = ROUND(DATEDIFF('d',Text32,Text34)/365,1);"
+CurrentDb.Execute sqltext
+
+sqltext = "DELETE * FROM tblcons WHERE Text30 = 'Test' OR Text30 = 'test' OR Text30 = 'Testy' OR Text30 = 'testy';"
+CurrentDb.Execute sqltext
+
+sqltext = "UPDATE tblcons SET Text36=REPLACE(Text36, chr(39),'');" 'get rid of tricky apostrophes in names
+CurrentDb.Execute sqltext
+
+
+'now delete Text30, Text31, Text32, Text33
+sqltext = "ALTER TABLE tblcons DROP COLUMN Text30, Text31, Text32, Text33;"
+CurrentDb.Execute sqltext
+
+
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE HCPcons;"
+On Error GoTo ErrorHandler
+
+sqltext = "SELECT DISTINCT Text36 INTO HCPcons FROM tblcons"
+CurrentDb.Execute sqltext
+'sqltext = "ALTER TABLE HCPcons ADD COLUMN hcptype TEXT(25);"
+'CurrentDb.Execute sqltext
+'sqltext = "ALTER TABLE HCPcons ADD COLUMN hID COUNTER;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE HCPcons SET hcptype='Doctor'&hID WHERE instr(Text36,'Dr')=TRUE OR instr(Text36,'Doctor')=TRUE;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE HCPcons SET hcptype='Nurse'&hID WHERE instr(Text36,'Nurse')=TRUE;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE HCPcons SET hcptype='Other'&hID WHERE instr(Text36,'Nurse')=FALSE AND instr(Text36,'Dr')=FALSE AND instr(Text36,'Doctor')= FALSE;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE tblcons, HCPcons SET tblcons.Text36 = [HCPcons].[hcptype] WHERE tblcons.Text36=HCPcons.Text36;"
+'CurrentDb.Execute sqltext
+
+
+'### / cons
+
+'### 3 deal with wr .csv
+   currtry = addwr
+    strTable = "tblwr"
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE tblwr;"
+On Error GoTo ErrorHandler
+   DoCmd.TransferText TransferType:=acImportDelim, TableName:=strTable, FileName:=addwr, HasFieldNames:=True
+    
+    
+   If runninghalfwr = True Then
+        'do nothing
+   Else
+        'stitch together the files
+        currtry = addwrtwo
+        strTable = "tblwr2"
+        'if exists will drop table
+         On Error Resume Next
+        CurrentDb.Execute "DROP TABLE tblwr2;"
+        On Error GoTo ErrorHandler
+        DoCmd.TransferText TransferType:=acImportDelim, TableName:=strTable, FileName:=addwrtwo, HasFieldNames:=True
+        sqltext = "INSERT INTO tblwr SELECT * FROM tblwr2;"
+        CurrentDb.Execute sqltext
+   End If
+
+sqltext = "ALTER TABLE tblwr ADD COLUMN ptcode TEXT(25);"
+CurrentDb.Execute sqltext
+sqltext = "ALTER TABLE tblwr ADD COLUMN ptage DOUBLE;"
+CurrentDb.Execute sqltext
+
+sqltext = "UPDATE tblwr SET ptcode = 'p' & MID(" & anoncode & "*((ASC(MID(Text60, INSTR(Text60,',') + 2,1))) + (ASC(MID(Text60, INSTR(Text60,',') - 1,1)))+99) & (((val(LEFT(Text41,2))+7) MOD 7)+1) & (((val(RIGHT(Text41,2))+7) MOD 7)+1) & ((ASC(MID(Text60, INSTR(Text60,',') - 2,1))) + (ASC(MID(Text60, INSTR(Text60,',') + 3,1)))+99),2,8), ptage = ROUND(DATEDIFF('d',Text41,Text55)/365,1);"
+CurrentDb.Execute sqltext
+
+sqltext = "UPDATE tblwr SET Text52 ='DVC' WHERE Instr(Text52,'DVC')=True or Instr(Text52,'Doctor')=True;"
+CurrentDb.Execute sqltext
+sqltext = "UPDATE tblwr SET Text52 ='GMS' WHERE Instr(Text52,'GMS')=True;"
+CurrentDb.Execute sqltext
+sqltext = "UPDATE tblwr SET Text52 ='PRV' WHERE Instr(Text52,'PRV')=True or Instr(Text52,'Private')=True;"
+CurrentDb.Execute sqltext
+sqltext = "UPDATE tblwr SET Text52 ='Unknown' WHERE Text52<>'DVC' AND Text52<>'GMS' AND Text52<>'PRV';"
+CurrentDb.Execute sqltext
+
+
+sqltext = "DELETE * FROM tblwr WHERE LEFT(Text60,5)='Test,' OR LEFT(Text60,5)='test,' OR LEFT(Text60,6)='Testy,' OR LEFT(Text60,6)='testy,';"
+CurrentDb.Execute sqltext
+
+sqltext = "UPDATE tblwr SET Text53=REPLACE(Text53, chr(39),'');" 'get rid of tricky apostrophes in names
+CurrentDb.Execute sqltext
+
+'now delete fields/columns that need to go
+sqltext = "ALTER TABLE tblwr DROP COLUMN Text56, Text130, Text60, Text41;"
+CurrentDb.Execute sqltext
+
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE HCPwr;"
+On Error GoTo ErrorHandler
+
+sqltext = "SELECT DISTINCT Text53 INTO HCPwr FROM tblwr"
+CurrentDb.Execute sqltext
+'sqltext = "ALTER TABLE HCPwr ADD COLUMN hcptype TEXT(25);"
+'CurrentDb.Execute sqltext
+'sqltext = "ALTER TABLE HCPwr ADD COLUMN hID COUNTER;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE HCPwr SET hcptype='Doctor'&hID WHERE instr(Text53,'Dr')=TRUE OR instr(Text53,'Doctor')=TRUE;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE HCPwr SET hcptype='Nurse'&hID WHERE instr(Text53,'Nurse')=TRUE;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE HCPwr SET hcptype='Other'&hID WHERE instr(Text53,'Nurse')=FALSE AND instr(Text53,'Dr')=FALSE AND instr(Text53,'Doctor')= FALSE;"
+'CurrentDb.Execute sqltext
+'sqltext = "UPDATE tblwr, HCPwr SET tblwr.Text53 = [HCPwr].[hcptype] WHERE tblwr.Text53=HCPwr.Text53;"
+'CurrentDb.Execute sqltext
+
+'### / wr
+
+
+
+'now sort HCPall table i.e. ensure all HCPs in both WR and Cons files are in here
+
+'make sure SortHCPs form isn't open as otherwise will error out as it feeds the listbox if run before
+On Error Resume Next
+    DoCmd.Close acForm, "SortHCPs"
+On Error GoTo ErrorHandler
+
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE HCPall;"
+On Error GoTo ErrorHandler
+
+sqltext = "SELECT DISTINCT * INTO HCPall FROM (SELECT * FROM HCPcons UNION ALL SELECT * FROM HCPwr);"
+CurrentDb.Execute sqltext
+sqltext = "ALTER TABLE HCPall ADD COLUMN hID COUNTER;"
+CurrentDb.Execute sqltext
+sqltext = "ALTER TABLE HCPall ADD COLUMN hcptype TEXT(50)"
+CurrentDb.Execute sqltext
+sqltext = "ALTER TABLE HCPall ADD COLUMN HCPanon TEXT(50);"
+CurrentDb.Execute sqltext
+
+
+
+
+
+DoCmd.OpenForm "SortHCPs"
+
+'ask user to tell you who each person is & then report out to csvs...
+
+Exit Sub
+
+ErrorHandler:
+
+If Err.Number = 7874 Then
+Resume Next 'Tried to delete a non-existing table, resume
+End If
+
+If Err.Number = 3044 Then
+MsgBox ("The following address does not point me to a CSV file- " & vbNewLine & vbNewLine & currtry & vbNewLine & vbNewLine & "Anonymisation stopped.")
+Exit Sub
+End If
+
+If Err.Number = 3011 Then
+MsgBox ("The following address does not point me to a CSV file- " & vbNewLine & vbNewLine & currtry & vbNewLine & vbNewLine & "Anonymisation stopped.")
+Exit Sub
+End If
+
+If Err.Number = 2522 Then
+MsgBox ("Error opening CSV at- " & vbNewLine & vbNewLine & currtry & vbNewLine & vbNewLine & "Please check address. Anonymisation stopped.")
+Exit Sub
+End If
+
+If Err.Number = 3051 Then
+MsgBox ("The following CSV file- " & vbNewLine & vbNewLine & currtry & vbNewLine & vbNewLine & " is currently open - Please close it and run again. Anonymisation stopped.")
+Exit Sub
+End If
+
+If Err.Number = 3010 Then
+MsgBox ("Issue with creating HCPall table. Anonymisation stopped.")
+Exit Sub
+End If
+
+MsgBox (Err.Description)
+End Sub
+
+Private Sub browse1_Click()
+Dim strChoice As String
+strChoice = FolderSelection
+If Len(strChoice) > 0 Then
+    Me.pathone = strChoice
+Else
+    ' do nothing if user cancels selection
+End If
+
+End Sub
+
+Private Sub browse1second_Click()
+Dim strChoice As String
+strChoice = FolderSelection
+If Len(strChoice) > 0 Then
+    Me.pathonesecond = strChoice
+Else
+    ' do nothing if user cancels selection
+End If
+
+End Sub
+
+Private Sub browse2_Click()
+Dim strChoice As String
+strChoice = FolderSelection
+If Len(strChoice) > 0 Then
+    Me.pathtwo = strChoice
+Else
+    ' do nothing if user cancels selection
+End If
+End Sub
+
+Private Sub browse2second_Click()
+Dim strChoice As String
+strChoice = FolderSelection
+If Len(strChoice) > 0 Then
+    Me.pathtwosecond = strChoice
+Else
+    ' do nothing if user cancels selection
+End If
+End Sub
+
+
+
+Private Sub finisher_Click()
+On Error GoTo ErrorHandler
+
+
+'now backpopulate the cons and wr tables with anon version of HCP descriptors HCPall table i.e. ensure all HCPs in both WR and Cons files are in here
+
+Err = 0
+
+On Error Resume Next
+sqltext = "UPDATE HCPall SET HCPanon=hcptype&'-'&hID;"
+CurrentDb.Execute sqltext
+If Err <> 0 Then
+MsgBox "You can't run the exporting step yet, you need to anonymise first (green button)"
+Exit Sub
+End If
+On Error GoTo ErrorHandler
+
+sqltext = "UPDATE tblcons, HCPall SET tblcons.Text36 = HCPall.HCPanon WHERE tblcons.Text36 = HCPall.Text36"
+CurrentDb.Execute sqltext
+sqltext = "UPDATE tblwr, HCPall SET tblwr.Text53 = HCPall.HCPanon WHERE tblwr.Text53 = HCPall.Text36"
+CurrentDb.Execute sqltext
+
+
+'now just export the Tables to CSV files
+
+   addcons = Form_Main.pathone.Value
+   addwr = Form_Main.pathtwo.Value
+   
+strTable = "tblcons"
+addcons = Left(addcons, Len(addcons) - 4) & "ANON.csv"
+DoCmd.TransferText TransferType:=acExportDelim, TableName:=strTable, FileName:=addcons, HasFieldNames:=True
+strTable = "tblwr"
+addwr = Left(addwr, Len(addwr) - 4) & "ANON.csv"
+DoCmd.TransferText TransferType:=acExportDelim, TableName:=strTable, FileName:=addwr, HasFieldNames:=True
+
+'drop names from HCPall table
+On Error Resume Next
+sqltext = "ALTER TABLE HCPall DROP COLUMN Text36;"
+CurrentDb.Execute sqltext
+On Error GoTo ErrorHandler
+
+'strTable = "HCPall"
+'addhcps = Left(addwr, InStrRev(addwr, "\"))
+'addhcps = addhcps & strTable & ".CSV"
+'DoCmd.TransferText TransferType:=acExportDelim, TableName:=strTable, FileName:=addhcps, HasFieldNames:=True
+
+'export HCPall
+'and delete all Tables
+
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE HCPall;"
+On Error GoTo ErrorHandler
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE HCPcons;"
+On Error GoTo ErrorHandler
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE HCPwr;"
+On Error GoTo ErrorHandler
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE tblwr;"
+On Error GoTo ErrorHandler
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE tblcons;"
+On Error GoTo ErrorHandler
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE tblwr2;"
+On Error GoTo ErrorHandler
+On Error Resume Next
+  CurrentDb.Execute "DROP TABLE tblcons2;"
+On Error GoTo ErrorHandler
+CurrentDb.Close
+Exit Sub
+
+ErrorHandler:
+MsgBox (Err.desc)
+End Sub
