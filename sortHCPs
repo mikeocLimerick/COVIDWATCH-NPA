@@ -1,0 +1,60 @@
+'Sort HCP code
+
+Private Sub assignrole_Click()
+On Error GoTo ErrorHandler
+Dim count As Integer
+count = 0
+Dim varItm As Variant
+
+
+ For Each varItm In Listhcps.ItemsSelected
+ count = count + 1
+ sqlstring = sqlstring & "'" & Replace(Listhcps.ItemData(varItm), "'", "") & "' OR Text36 = "
+ Next varItm
+ 
+ 
+If count = 0 Then
+MsgBox "No HCP names Selected"
+Exit Sub
+End If
+
+If IsNull(hcpdesc) Or hcpdesc = "" Then
+MsgBox "No HCP description entered"
+Exit Sub
+Else
+userentry = hcpdesc
+End If
+
+
+
+ 'cut off last Text36
+ sqlstring = Trim(Left(sqlstring, Len(sqlstring) - 13))
+
+' update HCP table
+sqltext = "UPDATE HCPall SET hcptype = '" & userentry & "' WHERE Text36 = " & sqlstring & ";"
+'MsgBox (sqltext)
+CurrentDb.Execute sqltext
+
+ ' now get rid of them from the List
+Listhcps.Requery
+Listhcps.RowSourceType = "Table/Query"
+Listhcps.RowSource = "SELECT Text36 FROM HCPall WHERE hcptype IS NULL;"
+
+'now clear the HCPdesc box
+hcpdesc = ""
+
+If Listhcps.ListCount = 0 Then
+'close me down
+MsgBox "All HCPs have been successfully assigned a 'tag'/job description. Nearly there!"
+On Error Resume Next
+    DoCmd.Close acForm, "SortHCPs"
+On Error GoTo ErrorHandler
+End If
+Application.RefreshTitleBar
+Form_Main.finisher.Visible = True
+Exit Sub
+
+ErrorHandler:
+MsgBox (Err.Description)
+
+End Sub
